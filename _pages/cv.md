@@ -4,8 +4,10 @@ permalink: /cv/
 title: CV
 nav: true
 nav_order: 3
-description: <a href="/assets/pdf/KyleWrightCV.pdf">Download PDF</a>
+description: Research, publications, experience and education.
 ---
+
+[Download the PDF version](/assets/pdf/KyleWrightCV.pdf)
 
 Mathematical physicist returning to research, aimed at the mathematical foundations of AI alignment. PhD and postdoctoral
 work on symmetry and duality structures in string theory, quantum and conformal field theory: generalized geometry,

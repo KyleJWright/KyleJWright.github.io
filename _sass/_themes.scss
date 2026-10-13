@@ -206,3 +206,9 @@ html[data-theme-setting="light"] {
 #light-toggle:hover .fa-half-sun-moon::after {
   color: var(--global-theme-color);
 }
+
+/* Site-specific: make bold text clearly bold on the light base font weight */
+strong,
+b {
+  font-weight: 600;
+}

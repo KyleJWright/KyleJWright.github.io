@@ -9,7 +9,7 @@ profile:
   image: kyle-wright.jpg
   image_circular: false
 
-selected_papers: false # set to true once papers marked selected={true} are in _bibliography/papers.bib
+selected_papers: true # lists papers marked selected={true} in _bibliography/papers.bib
 social: true # includes social icons at the bottom of the page
 
 announcements:

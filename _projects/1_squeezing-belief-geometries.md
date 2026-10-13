@@ -8,6 +8,24 @@ importance: 1
 
 **Work in progress.** Small-scale, preliminary results from three seeds.
 
+## Background
+
+While at the Iliad Intensive I was introduced to the paper
+[_Transformers Represent Belief State Geometry in their Residual Stream_](https://arxiv.org/abs/2405.15943) (Shai et
+al. 2024). The image of a hidden Markov model encoded in the network is striking. Seeing the belief-state simplex in the
+residual stream gives strong support to the idea that training learns models of beliefs about the hidden state, updated
+optimally, as predicted in theory (at least in some simple cases).
+
+I wanted to get my hands dirty: to see whether I could reproduce these results, with the assistance of Claude, and then
+extend the code to ask some simple follow-up questions.
+
+During the Intensive I was also introduced to a version of the _superposition hypothesis_ of
+[Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html), which suggests that in deep networks
+it is typical for some linearly represented features not to be orthogonal. The cartoon picture is trying to squeeze more
+than $$n$$ vectors into $$\mathbb{R}^n$$: they can't all be mutually orthogonal.
+
+I'm interested in better understanding how this squeezing works in the setting of Shai et al.
+
 ## Question
 
 What does a transformer do when it must represent several processes in a residual stream too narrow to hold them all, and

@@ -212,3 +212,37 @@ strong,
 b {
   font-weight: 600;
 }
+
+/* Site-specific: faint Penrose-tiling watermark in the top-right and bottom-left corners */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: contain;
+  width: min(36vw, 440px);
+}
+
+body::before {
+  top: 3.6rem; /* below the navbar */
+  right: 0;
+  aspect-ratio: 251.46 / 290;
+  background-image: url("/assets/img/penrose-top-right.svg");
+  background-position: top right;
+}
+
+body::after {
+  bottom: 2.2rem; /* above the footer */
+  left: 0;
+  aspect-ratio: 250 / 296.42;
+  background-image: url("/assets/img/penrose-bottom-left.svg");
+  background-position: bottom left;
+}
+
+html[data-theme="dark"] body::before,
+html[data-theme="dark"] body::after {
+  filter: invert(1);
+  opacity: 0.55;
+}

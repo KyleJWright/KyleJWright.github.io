@@ -3,8 +3,8 @@ layout: page
 title: projects
 permalink: /projects/
 description: Research code and experiments, including work in progress.
-nav: false
-nav_order: 2
+nav: true
+nav_order: 3
 horizontal: false
 ---
 

@@ -4,6 +4,11 @@ title: about
 permalink: /
 subtitle: Theoretical physicist working on AI safety and alignment &middot; London
 
+profile:
+  align: right
+  image: kyle-wright.jpg
+  image_circular: false
+
 selected_papers: false # set to true once papers marked selected={true} are in _bibliography/papers.bib
 social: true # includes social icons at the bottom of the page
 

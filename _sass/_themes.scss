@@ -13,9 +13,9 @@
   --global-theme-color: #5b6067; // titanium
   --global-hover-color: #5b6067;
   --global-hover-text-color: #{v.$white-color};
-  --global-footer-bg-color: #{v.$grey-color-dark};
-  --global-footer-text-color: #{v.$grey-color-light};
-  --global-footer-link-color: #{v.$white-color};
+  --global-footer-bg-color: #f3f4f5;
+  --global-footer-text-color: #6b7078;
+  --global-footer-link-color: #5b6067;
   --global-distill-app-color: #{v.$grey-color};
   --global-divider-color: rgba(0, 0, 0, 0.1);
   --global-card-bg-color: #{v.$white-color};
@@ -83,9 +83,9 @@ html[data-theme="dark"] {
   --global-theme-color: #b9bdc3; // silver
   --global-hover-color: #b9bdc3;
   --global-hover-text-color: #{v.$black-color};
-  --global-footer-bg-color: #{v.$grey-color-light};
-  --global-footer-text-color: #{v.$grey-color-dark};
-  --global-footer-link-color: #{v.$black-color};
+  --global-footer-bg-color: #26272a;
+  --global-footer-text-color: #9a9ea5;
+  --global-footer-link-color: #b9bdc3;
   --global-distill-app-color: #{v.$grey-color-light};
   --global-divider-color: #424246;
   --global-card-bg-color: #{v.$grey-900};

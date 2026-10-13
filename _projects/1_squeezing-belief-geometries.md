@@ -19,6 +19,15 @@ optimally, as predicted in theory (at least in some simple cases).
 I wanted to get my hands dirty: to see whether I could reproduce these results, with the assistance of Claude, and then
 extend the code to ask some simple follow-up questions.
 
+{% include figure.liquid loading="eager" path="assets/img/projects/mess3-belief-simplex.png" class="img-fluid rounded z-depth-1" zoomable=true %}
+
+<div class="caption">
+  My reproduction of Shai et al.'s Mess3 result. Left: the true belief states, which form a fractal in the probability
+  simplex. Middle and right: the beliefs read out of the trained transformer's residual stream by a linear map, from the
+  final layer and from all layers combined. The model reaches the optimal loss to within 0.1%, and the held-out error of
+  the final-layer fit (MSE 0.0003) is about 360 times smaller than for shuffled beliefs.
+</div>
+
 During the Intensive I was also introduced to a version of the _superposition hypothesis_ of
 [Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html), which suggests that in deep networks
 it is typical for some linearly represented features not to be orthogonal. The cartoon picture is trying to squeeze more

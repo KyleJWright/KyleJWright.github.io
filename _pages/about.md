@@ -2,7 +2,7 @@
 layout: about
 title: about
 permalink: /
-subtitle: Theoretical physicist working on AI safety and alignment &middot; London
+subtitle: Mathematical physicist working on AI safety and alignment &middot; London
 
 profile:
   align: right
@@ -36,7 +36,7 @@ out cost-benefit analysis to ensure that New Zealanders were getting the best va
 meet the nation's upcoming electrification needs. This was important work but I did miss getting to flex my physics and
 mathematics research skills. Like many people with my background, I had a brief foray into finance.
 
-## AI safety and Alignment Research
+## AI Safety and Alignment Research
 
 I'm now moving into AI safety and alignment research, because it's a field where research-level mathematics can have a
 real-world impact. As AI systems become more capable, understanding what they have actually learned, and what they are

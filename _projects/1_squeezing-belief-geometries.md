@@ -157,7 +157,7 @@ the width-4 dense models sit at 0.50% above optimum: they predict A almost perfe
 
 (Beyond last token, per process.) With shared tokens, both beliefs still survive down to width 4 and fail at width 3,
 the same threshold as before: whichever process is running, the prediction is a distribution over the same 3 tokens, a
-2-parameter family. B holds up better than with separate tokens (0.67 against 0.54 at width 4).
+2-parameter family. B holds up better than with separate tokens (0.67 against 0.54 at width 4). Loss is as close to optimal as with separate tokens (0.15% above at width 4, against 0.14%), even though the optimal predictor now has to weigh up which process is running.
 
 The scores are lower at the wider widths, but this does not mean the model is worse. Each process's belief is computed as
 if the process were known. With shared tokens the model cannot know it, especially early in a sequence, so even the
@@ -206,8 +206,7 @@ time, so nothing forces their directions apart.
 **Sparse, shared tokens: one plane for two beliefs.** Remove the separate tokens and the separation goes with it: the
 offset drops from about 6 spreads to 0.05–0.4, so the 6 spreads came from the token embeddings, not from anything the
 model had to learn. The planes coincide too, with overlap 0.9–0.97 at every width, including width 8, where there is
-room for orthogonal planes and for a separate offset. The model is not squeezed into sharing; it chooses one plane for
-both beliefs.
+room for orthogonal planes and for a separate offset. The model is not squeezed into sharing; it chooses one plane for both beliefs, and loses nothing measurable by doing so (loss within 0.15% of optimal down to width 4).
 
 A natural reading: whichever process is running, the next-token prediction is a distribution over the same 3 tokens,
 and one plane can carry it for both. This is consistent with the final layer holding mainly the next-token prediction,

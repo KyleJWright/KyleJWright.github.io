@@ -8,8 +8,7 @@ nav_order: 4
 ---
 
 <a href="/assets/pdf/machines-preferences-world-models.pdf">
-  <img src="/assets/img/notes-mpwm-cover.png" alt="Title page of Machines, Preferences, and World Models"
-       style="float: right; width: 190px; margin: 0.25rem 0 1rem 1.5rem; border: 1px solid var(--global-divider-color); border-radius: 4px;">
+  <img src="/assets/img/notes-mpwm-cover.png" alt="Title page of Machines, Preferences, and World Models" class="notes-cover">
 </a>
 
 ## [Machines, Preferences, and World Models](/assets/pdf/machines-preferences-world-models.pdf)

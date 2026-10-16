@@ -7,12 +7,16 @@ importance: 1
 github: https://github.com/KyleJWright/squeezing-belief-geometries
 ---
 
-Reproducing the belief-state simplex of Shai et al. (2024) in a small transformer, then squeezing it: what happens to the
-simplex when the residual stream is too narrow to hold it, and when two processes must share a stream with room for one
-but not both?
+This project starts by reproducing the belief-state simplex of Shai et al. (2024) in a small transformer. As an
+extension, I wanted to see what happens to belief states when the model is squeezed: when the residual stream is too
+narrow to hold one simplex, or must hold two processes with room for only one.
 
-The short answer: **the model keeps what its output needs and, as room runs out, gives up the rest, cheapest first.** The
-limit is set by what the output layer can read, not by how many directions fit in the space.
+The short answer: **the model keeps what its output needs and, as room runs out, gives up the rest, cheapest (in terms of
+next-token cross-entropy loss) first.** The limit is set by what the output layer can read, not by how many directions
+fit in the space.
+
+**Note:** Related questions (superposition, belief-state geometry) are active research topics; this project is a hands-on
+exploration of them in a setting small enough to compute everything exactly.
 
 **Code and full write-up:** [github.com/KyleJWright/squeezing-belief-geometries](https://github.com/KyleJWright/squeezing-belief-geometries).
 The repository README has every table, and
@@ -39,25 +43,31 @@ I'm interested in better understanding how this squeezing works in the setting o
 ## Summary
 
 **The main finding.** The model keeps what the next-token prediction needs and, as room runs out, gives up everything
-else, cheapest first. Each experiment shows a different piece of this:
+else, cheapest first. Here "cheapest" means costing the least next-token loss to give up. This is measured directly for
+the simultaneous case (section 3) and inferred from the loss numbers elsewhere. Each experiment shows a different piece
+of this:
 
 - **Reproduction.** A 4-layer transformer trained on the Mess3 process carries the fractal belief simplex in its final
   residual stream ($$R^2 = 1.00$$ on held-out prefixes); shuffling beliefs before fitting gives $$R^2 = 0.00$$.
 - **One process, too narrow.** Fine fractal detail goes first, at almost no cost in loss. The simplex survives down to
-  width 4 and fails at width 3, where the decoded beliefs collapse onto a curve. The threshold matches what the output
-  layer can read: after LayerNorm, a model of width $$d$$ can produce a family of predictions with at most $$d-2$$
-  parameters, and Mess3 needs 2.
-- **Two processes at once (dense).** As width falls, the model drops one process entirely, and it is the one whose memory
+  width 4 and fails at width 3, where the decoded beliefs collapse onto a curve. The threshold matches the _readout
+  limit_: after the final LayerNorm, the output head of a model of width $$d$$ can produce a family of predictions with at
+  most $$d-2$$ parameters, and Mess3 needs 2.
+- **Two processes simultaneously.** As width falls, the model drops one process entirely, and it is the one whose memory
   is worth ~30 times less in loss. Dropping it costs almost exactly what that memory is worth (0.50% of the optimal loss).
-- **Two processes, one at a time (sparse).** Both survive to width 4. With one shared set of tokens the two beliefs
-  collapse onto a single plane at every width, even with room for two, because the output needs only one prediction, and
-  it costs nothing measurable.
+- **Two processes, one at a time.** Each sequence comes from one process, and both beliefs survive down to width 4. When
+  the processes use separate tokens, their belief patches point in similar directions but sit apart. When they share the
+  same three tokens, the patches lie on top of each other, with the same directions and the same centre, at every width.
+  This holds even at width 8, where there is room to keep them apart. A likely reason is that either way the model must
+  predict a distribution over the same three tokens, so one patch can serve both. Sharing costs nothing measurable: loss
+  stays within 0.15% of optimal down to width 4, the same as with separate tokens.
 - **Which process is running?** With room to spare (width 8) the model also tracks which process is running, as well as an
-  optimal observer can, in one extra direction. Squeezed, that is the first thing to go: at width 4 the model learns it
-  early in training and then gives it up.
-- **Packing was the wrong lens.** I expected the Grassmannian packing problem to describe how the beliefs share the space.
-  It mostly does not: when both beliefs are kept their planes are near-orthogonal, but the readout limit always binds
-  first, and in the sparse case the problem is not a packing problem at all.
+  optimal observer can, in one extra direction: measured against the exact 6-state belief, it carries as much of it as the
+  prediction plus the process posterior would ($$R^2$$ 0.913 for both), never the full belief. Squeezed, that extra
+  direction is the first thing to go: at width 4 the model learns it early in training and then gives it up.
+- **Packing was not the constraint.** I initially expected the Grassmannian packing problem to describe how the beliefs
+  share the space. It mostly does not: when both beliefs are kept their planes are near-orthogonal, but the readout limit
+  always binds first, and in the one-at-a-time case the problem is not a packing problem at all.
 - **The planes are not flat.** Measured with a Gauss map, every belief patch is a wrinkled sheet whose local tangent
   planes tilt 12–50° from its best-fit plane. Linear decoders never notice, because the wrinkles lie outside the plane.
   The planes are the linearly readable summary of curved patches.
@@ -72,8 +82,10 @@ Two lessons from this toy setting may be worth testing more widely.
   narrow model says little about whether the variable matters to the task or can be learned, and a signal found in a wide
   model need not survive in a narrower one. Methods that look for latent knowledge with probes need to allow for this.
 - **What gets superposed or dropped is decided by the readout.** The two behaviours of Elhage et al.'s toy models
-  reappear: dense features force the least valuable one out, sparse ones share directions. But here what decides is what
-  the output needs and what each piece is worth, not how many vectors fit in the space.
+  reappear: their _dense_ features (here, processes running simultaneously) force the least valuable one out, and their
+  _sparse_ ones (one at a time) share directions. But here what decides is what the output needs and what each piece is
+  worth, not how many vectors fit in the space. With separate tokens the one-at-a-time patches are told apart by an offset
+  supplied by the token embeddings; with shared tokens they share one plane outright.
 
 These are small models trained on a toy process; whether the lessons carry over is an open question.
 
@@ -83,22 +95,28 @@ These are small models trained on a toy process; whether the lessons carry over 
 parametrised by $$(x, \alpha)$$. The _belief_ $$\eta$$ is the posterior over hidden states given the tokens seen so far;
 it lives in a triangle, and over all prefixes it traces out a fractal.
 
-**Model.** A pre-LayerNorm transformer with 4 layers, one attention head and context length 10, trained on freshly
-sampled sequences. Only the residual width $$d$$ is varied; width 64 is the size used by Shai et al.
+**Model.** A small transformer: 4 layers, each with one attention head (which lets a position draw on earlier tokens)
+and a small two-layer network (MLP, 256 hidden units). It reads up to 10 tokens. Each position carries a vector of $$d$$
+numbers, the residual stream. Every layer adds to it, and it is normalised by a LayerNorm before each read. Only the width
+$$d$$ is varied; width 64 is the size used by Shai et al.
 
-**Simplex images.** For every distinct prefix, take the final residual stream, fit an affine map to the exact belief on
-half the prefixes, and plot the other half in the triangle, coloured by the true belief. Two numbers go with each image:
+**Training.** Next-token prediction on freshly sampled sequences (256 per step, never repeated), with the Adam optimiser
+and a learning rate that decays from $$10^{-3}$$: 20,000 steps for one process, 15,000 for two.
+
+**Simplex images.** For every distinct prefix, take the final residual stream, before the last LayerNorm, fit an affine
+least-squares regression (with a small penalty) to the exact belief on half the prefixes, and plot the other half in the triangle, coloured by the true belief. Two numbers go with each image:
 
 - **$$R^2$$:** the fraction of belief variance recovered on held-out prefixes.
 - **Beyond last token:** the last token alone predicts about 68% of a Mess3 belief, which gives three coarse blobs. This
   measures how much of the rest, the fine structure that needs memory of earlier tokens, the model captures: 1 is
   perfect, and 0 or below means no memory beyond the last token.
 
-**Two processes.** Process A has $$(x, \alpha) = (0.05, 0.85)$$ and B has $$(0.15, 0.60)$$. In the **sparse** regime each
-sequence comes from one process, chosen at random. It comes in two versions: with **separate tokens** for each process,
+**Two processes.** Process A has $$(x, \alpha) = (0.05, 0.85)$$ and B has $$(0.15, 0.60)$$. In the **one-at-a-time**
+regime each sequence comes from one process, chosen at random. It comes in two versions: with **separate tokens** for each process,
 so every token reveals the process, and with one **shared** set of 3 tokens, so the model must infer the process from the
-statistics of what it has seen. In the **dense** regime both run side by side, and each token is the pair of their
-tokens.
+statistics of what it has seen. In the **simultaneous** regime both run side by side, and each token is the pair of their
+tokens. In the language of Elhage et al. (2022), one at a time corresponds to _sparse_ features and simultaneous to
+_dense_ ones.
 
 All numbers are means over 3 seeds; images are seed 0.
 
@@ -136,47 +154,47 @@ only finitely many beliefs, and nothing forces the network's map from prefixes t
 {% include figure.liquid loading="lazy" path="assets/img/projects/sbg-simplex-pair.png" class="img-fluid rounded z-depth-1" zoomable=true %}
 
 <div class="caption">
-  Two Mess3 processes squeezed together as the residual width shrinks. Left: sparse, one process per sequence. Right:
-  dense, both processes every token.
+  Two Mess3 processes squeezed together as the residual width shrinks. Left: one at a time, one process per sequence.
+  Right: simultaneous, both processes every token.
 </div>
 
-Beyond last token, per process (sparse here means separate tokens; the shared-token version is below):
+Beyond last token, per process (one at a time here means separate tokens; the shared-token version is below):
 
-| Width | Sparse A | Sparse B | Dense A | Dense B |
-| ----- | -------- | -------- | ------- | ------- |
-| 8     | 0.96     | 0.89     | 0.94    | 0.74    |
-| 6     | 0.94     | 0.85     | 0.85    | 0.22    |
-| 5     | 0.94     | 0.69     | 0.80    | −1.70   |
-| 4     | 0.91     | 0.54     | 0.75    | −3.35   |
-| 3     | −0.34    | 0.08     | 0.44    | −3.76   |
+| Width | One at a time: A | One at a time: B | Simultaneous: A | Simultaneous: B |
+| ----- | ---------------- | ---------------- | --------------- | --------------- |
+| 8     | 0.96             | 0.89             | 0.94            | 0.74            |
+| 6     | 0.94             | 0.85             | 0.85            | 0.22            |
+| 5     | 0.94             | 0.69             | 0.80            | −1.70           |
+| 4     | 0.91             | 0.54             | 0.75            | −3.35           |
+| 3     | −0.34            | 0.08             | 0.44            | −3.76           |
 
 Loss above optimum:
 
-| Width                   | 8     | 6     | 5     | 4     | 3    | 2   |
-| ----------------------- | ----- | ----- | ----- | ----- | ---- | --- |
-| Sparse, separate tokens | 0.02% | 0.03% | 0.04% | 0.14% | 1.6% | 90% |
-| Sparse, shared tokens   | 0.01% | 0.03% | 0.05% | 0.15% | 2.0% | 13% |
-| Dense                   | 0.03% | 0.07% | 0.28% | 0.50% | 1.6% | 16% |
+| Width                          | 8     | 6     | 5     | 4     | 3    | 2   |
+| ------------------------------ | ----- | ----- | ----- | ----- | ---- | --- |
+| One at a time, separate tokens | 0.02% | 0.03% | 0.04% | 0.14% | 1.6% | 90% |
+| One at a time, shared tokens   | 0.01% | 0.03% | 0.05% | 0.15% | 2.0% | 13% |
+| Simultaneous                   | 0.03% | 0.07% | 0.28% | 0.50% | 1.6% | 16% |
 
-**Sparse: both survive to width 4,** with B losing detail first, and both fail at width 3, the same threshold as for one
+**One at a time: both survive to width 4,** with B losing detail first, and both fail at width 3, the same threshold as for one
 process. Only one process is active at a time, so the model never needs more than one 2-parameter family of predictions
 at once.
 
-**Dense: one process is given up.** B is already weak at width 6 and gone below it; the large negative values mean the
+**Simultaneous: one process is given up.** B is already weak at width 6 and gone below it; the large negative values mean the
 decoder cannot even recover B's last token, so B is dropped, not kept at low resolution. Two beliefs active at once need
 a 4-parameter family of predictions, so by the same heuristic exact prediction needs $$d \ge 6$$; in practice width 6 is
 not quite enough.
 
 **Why B.** B's history is worth about 30 times less in next-token loss than A's (0.002 against 0.061 nats for memory
-beyond the last token), so it is the cheap one to drop. Dropping B entirely costs 0.50% of the dense optimal loss, and
-the width-4 dense models sit at 0.50% above optimum: they predict A almost perfectly and B not at all.
+beyond the last token), so it is the cheap one to drop. Dropping B entirely costs 0.50% of the simultaneous optimal loss, and
+the width-4 simultaneous models sit at 0.50% above optimum: they predict A almost perfectly and B not at all.
 
-### Sparse with one shared set of tokens
+### One at a time, with one shared set of tokens
 
 {% include figure.liquid loading="lazy" path="assets/img/projects/sbg-simplex-shared.png" class="img-fluid rounded z-depth-1" zoomable=true %}
 
 <div class="caption">
-  Sparse regime with separate tokens per process (left) and one shared set of tokens (right), as the residual width
+  One-at-a-time regime with separate tokens per process (left) and one shared set of tokens (right), as the residual width
   shrinks.
 </div>
 
@@ -205,8 +223,8 @@ relative to each other, and is each patch flat? Everything here is measured in t
 of dimension $$d - 1$$.
 
 The starting hypothesis was the cartoon of superposition: two beliefs squeezed into too little room should arrange their
-planes as an optimal Grassmannian packing, as far apart as the space allows. **This turned out to be mostly the wrong
-lens**, for two reasons: the readout limit binds before packing ever does, and the patches are not flat planes but
+planes as an optimal Grassmannian packing, as far apart as the space allows. **This turned out not to describe what the
+models do**, for two reasons: the readout limit binds before packing ever does, and the patches are not flat planes but
 wrinkled sheets.
 
 ### Overlap between processes
@@ -219,30 +237,30 @@ linear reader, which is how every later layer first reads the stream.
 
 <div class="caption">
   Left: largest overlap between the two learned belief planes against the optimal Grassmannian packing and the Rankin
-  bound, for sparse (separate and shared tokens) and dense models. Right: in the sparse regime, how far apart the two
-  belief patches sit, in units of their spread.
+  bound, for one-at-a-time (separate and shared tokens) and simultaneous models. Right: in the one-at-a-time regime, how
+  far apart the two belief patches sit, in units of their spread.
 </div>
 
-| Width | Optimum | Random planes | Sparse, separate tokens | Offset separation | Sparse, shared tokens | Offset separation | Dense         |
-| ----- | ------- | ------------- | ----------------------- | ----------------- | --------------------- | ----------------- | ------------- |
-| 3     | 1       | 1             | 1.00                    | 2.4               | 1.00                  | 0.05              | –             |
-| 4     | 0.50    | 0.67          | 0.75                    | 5.9               | 0.94                  | 0.17              | –             |
-| 5     | 0       | 0.50          | 0.29                    | 6.0               | 0.905                 | 0.21              | 0.26 (1 seed) |
-| 6     | 0       | 0.40          | 0.14                    | 6.0               | 0.94                  | 0.33              | 0.013         |
-| 8     | 0       | 0.29          | 0.11                    | 5.9               | 0.97                  | 0.38              | 0.020         |
+| Width | Optimum | Random planes | One at a time, separate tokens | Offset separation | One at a time, shared tokens | Offset separation | Simultaneous  |
+| ----- | ------- | ------------- | ------------------------------ | ----------------- | ---------------------------- | ----------------- | ------------- |
+| 3     | 1       | 1             | 1.00                           | 2.4               | 1.00                         | 0.05              | –             |
+| 4     | 0.50    | 0.67          | 0.75                           | 5.9               | 0.94                         | 0.17              | –             |
+| 5     | 0       | 0.50          | 0.29                           | 6.0               | 0.905                        | 0.21              | 0.26 (1 seed) |
+| 6     | 0       | 0.40          | 0.14                           | 6.0               | 0.94                         | 0.33              | 0.013         |
+| 8     | 0       | 0.29          | 0.11                           | 5.9               | 0.97                         | 0.38              | 0.020         |
 
 _Offset separation_ is the distance between the centres of the two processes' patches, divided by their typical
 spread; _random planes_ is the expected overlap of independent random planes, $$2/(d-1)$$.
 
-- **Dense: near-orthogonal, but never constrained.** Whenever both beliefs are kept (all seeds at widths 6 and 8) the
+- **Simultaneous: near-orthogonal, but never constrained.** Whenever both beliefs are kept (all seeds at widths 6 and 8) the
   planes are nearly orthogonal, overlap 0.01–0.02 against 0.3–0.4 for random planes. But orthogonality is easy there: it
-  is possible from $$d \ge 5$$, and the readout bound $$d \ge 6$$ is reached first. At width 5 only one seed keeps B at all
+  is possible from $$d \ge 5$$, and the readout limit $$d \ge 6$$ is reached first. At width 5 only one seed keeps B at all
   (overlap 0.26). Near-orthogonality may also simply be inherited from the optimal logits, whose A and B parts lie in
   orthogonal subspaces; the data cannot tell these apart.
-- **Sparse, separate tokens: an arrangement, not a packing.** Overlaps are far above the optimum, yet both processes
+- **One at a time, separate tokens: an arrangement, not a packing.** Overlaps are far above the optimum, yet both processes
   decode well and loss is within 0.14% of optimal: the patches share directions but sit about 6 spreads apart. That
   separation comes from the token embeddings, not from anything the model had to learn, as the shared-token models show.
-- **Sparse, shared tokens: one plane for two beliefs.** Without separate tokens the offset drops to 0.05–0.4 spreads, and
+- **One at a time, shared tokens: one plane for two beliefs.** Without separate tokens the offset drops to 0.05–0.4 spreads, and
   the planes coincide (overlap 0.9–0.97) at every width, including width 8, where there is room for two. Whichever process
   is running, the prediction is a distribution over the same 3 tokens, and one plane carries it for both, at no
   measurable cost in loss. Section 5 asks whether the model also tracks which process is running.
@@ -269,17 +287,17 @@ that direction is projected away. So the bending is measured directly.
   width (bottom).
 </div>
 
-| Model                      | Excess tilt, width 8 | width 4 | Bending, width 8    | width 4 |
-| -------------------------- | -------------------- | ------- | ------------------- | ------- |
-| One process                | 34.8°                | 27.5°   | 17.5%               | 20.1%   |
-| Sparse, separate tokens, A | 19.1°                | 12.0°   | 4.2%                | 1.7%    |
-| Sparse, separate tokens, B | 35.7°                | 24.7°   | 22.5%               | 9.3%    |
-| Sparse, shared tokens, A   | 34.5°                | 27.4°   | 26.1%               | 29.5%   |
-| Sparse, shared tokens, B   | 50.1°                | 29.1°   | 33.6%               | 47.6%   |
-| Dense, A                   | 21.6°                | 17.2°   | 5.4% (both beliefs) | –       |
+| Model                             | Excess tilt, width 8 | width 4 | Bending, width 8    | width 4 |
+| --------------------------------- | -------------------- | ------- | ------------------- | ------- |
+| One process                       | 34.8°                | 27.5°   | 17.5%               | 20.1%   |
+| One at a time, separate tokens, A | 19.1°                | 12.0°   | 4.2%                | 1.7%    |
+| One at a time, separate tokens, B | 35.7°                | 24.7°   | 22.5%               | 9.3%    |
+| One at a time, shared tokens, A   | 34.5°                | 27.4°   | 26.1%               | 29.5%   |
+| One at a time, shared tokens, B   | 50.1°                | 29.1°   | 33.6%               | 47.6%   |
+| Simultaneous, A                   | 21.6°                | 17.2°   | 5.4% (both beliefs) | –       |
 
-(Excess tilt is the mean tilt above the flat floor, which is about 2–7°. Bending is undefined for dense models of width 5
-or less, where the two planes fill the readable space.)
+(Excess tilt is the mean tilt above the flat floor, which is about 2–7°. Bending is undefined for simultaneous models of width
+5 or less, where the two planes fill the readable space.)
 
 - **No patch is flat.** Local tangent planes tilt 12–50° beyond the flat floor, in every model.
 - **Wrinkled, not bowed.** Quadratic terms in the belief capture only a few percent of the activation variance, far less
@@ -313,7 +331,8 @@ prediction is worth far more.
 
 ### Does it track the process?
 
-A ridge probe is fitted from the residual stream to $$\pi$$ at every layer, on the shared-token models of section 3.
+A ridge probe, an affine least-squares regression with a small penalty on the size of its coefficients (chosen on held-out
+data), is fitted from the residual stream to $$\pi$$ at every layer, on the shared-token models of section 3.
 
 {% include figure.liquid loading="lazy" path="assets/img/projects/sbg-probe.png" class="img-fluid rounded z-depth-1" zoomable=true %}
 
@@ -334,7 +353,7 @@ shared belief plane plus a separate direction for $$\pi$$**, as far as linear pr
 low-dimensional end, and not two separate belief models.
 
 As the stream narrows, process tracking is the first thing to go. Loss stays within 0.15% of optimal down to width 4,
-but the probe falls to $$R^2 = 0.12$$ and its accuracy stalls after a few tokens. This fits the readout argument of
+but the probe falls to $$R^2 = 0.12$$ and its accuracy stalls after a few tokens. This fits the readout limit of
 section 2: the output head has $$d - 2$$ dimensions, the prediction needs 2, and only what is left can carry $$\pi$$. At
 width 4 nothing is left. Dropping $$\pi$$ costs little: the optimal prediction already mixes the two processes'
 predictions in proportion to $$\pi$$, so the posterior is folded into the prediction.
@@ -343,8 +362,8 @@ predictions in proportion to $$\pi$$, so the posterior is folded into the predic
 
 Several settings learn a merged description first and split it later (causal-state splitting, deterministic annealing,
 stagewise learning in deep networks), which suggests a hypothesis: the shared-token model first learns one averaged
-process, then splits into two. Shared-token models at widths 8 and 4 were retrained with snapshots through training, and
-every snapshot was analysed in the same way.
+process, then splits into two. Shared-token models at widths 8 and 4 (3 seeds each) were retrained with
+19 snapshots between steps 25 and 15,000, and every snapshot was analysed in the same way.
 
 {% include figure.liquid loading="lazy" path="assets/img/projects/sbg-develop.png" class="img-fluid rounded z-depth-1" zoomable=true %}
 
@@ -373,35 +392,70 @@ The hypothesis is not borne out: the network never splits into two independent m
   usable dimensions. A feature is learned and then squeezed out by a more valuable one.
 - **No sharp transition.** Loss falls smoothly at this snapshot resolution; nothing looks like a sudden phase change.
 
+### Comparison with two theoretical references
+
+The shared-token data is one hidden Markov model with 6 hidden states, (process, state), so two exact reference points can
+be computed.
+
+- **The joint belief.** The exact posterior over the 6 states is the best possible belief state. A linear probe from the
+  residual stream to it measures how much of it a model carries. To read that number, the same probe is fitted from
+  idealised representations that hold only part of it: the next-token prediction alone, and the prediction plus $$\pi$$.
+- **The best single averaged model.** A single 3-state hidden Markov model fitted to the mixed data by maximum likelihood
+  (Baum–Welch). Its loss is what it costs to treat the two processes as one.
+
+{% include figure.liquid loading="lazy" path="assets/img/projects/sbg-reference.png" class="img-fluid rounded z-depth-1" zoomable=true %}
+
+<div class="caption">
+  The joint belief carried by the trained models against the idealised references (left), training loss against the
+  best single averaged model (middle), and probe R² over training (right).
+</div>
+
+| Representation                  | Probe $$R^2$$ for the joint belief |
+| ------------------------------- | ---------------------------------- |
+| Idealised: prediction only      | 0.734                              |
+| Idealised: prediction + $$\pi$$ | 0.913                              |
+| Trained model, width 4          | 0.742                              |
+| Trained model, width 5          | 0.800                              |
+| Trained model, width 6          | 0.857                              |
+| Trained model, width 8          | 0.913                              |
+
+(Final layer, mean over 3 seeds.)
+
+- **Width decides how much of the joint belief is kept.** At width 4 the model carries about what the prediction alone
+  carries; at width 8 it matches the prediction plus $$\pi$$; widths 5 and 6 lie in between. No width carries the full
+  joint belief, which would give $$R^2$$ near 1. The final layer holds a projection of the joint belief that grows from
+  the prediction to the prediction plus $$\pi$$ as room allows.
+- **No averaged stage.** The best single 3-state model is 0.80% above the optimum (using only the last token: 4.1%; a
+  uniform guess: 13.2%). Training passes through that level without pausing: width 8 drops below it by step 300, width 4
+  by step 800, with no plateau. There is no phase in which the network behaves like one averaged process, consistent with
+  it never splitting into two.
+
 ## Limitations
 
 - **Width changes more than storage.** Shrinking the residual width shrinks the space the belief is stored in, but also
   the space the network computes the belief update in. A failure at width 3 could come from storage, computation or
   optimisation; the large spread between seeds at width 3 suggests optimisation plays a part.
-- **The readout bound is a heuristic at finite context.** It is a theorem only in the long-context limit, and depends on
+- **The readout limit is a heuristic at finite context.** It is a theorem only in the long-context limit, and depends on
   the fractal's Hausdorff dimension, which is not computed here.
 - **Linear probes only.** At small widths a belief may still be present but encoded nonlinearly, which a linear probe
   would miss. This matters for the link to superposition, which is about features recovered nonlinearly despite
   interference.
-- **Training dynamics are sampled coarsely.** The development run has 3 seeds, two widths and a limited number of
-  snapshots; a brief transition between snapshots would be missed.
+- **Training dynamics are sampled coarsely.** The development run has 19 snapshots, 3 seeds and two widths; a brief transition between snapshots would be missed.
 - **Curvature is measured on averages.** The Gauss map and bending use averages over nearby beliefs and a finite
   neighbourhood, so wrinkles finer than the neighbourhood are not resolved.
-- **The packing comparison is never constrained.** Dense models keep both beliefs only where orthogonal planes are
+- **The packing comparison is never constrained.** Simultaneous models keep both beliefs only where orthogonal planes are
   possible, and their near-orthogonality may be inherited from the structure of the optimal logits.
 - **One process pair.** A and B differ a lot in how much their memory is worth, which decides which one is dropped. A
   symmetric pair would test whether the model then shares the cost or still picks one.
 - **Images are sensitive to cheap structure.** Width 8 loses visible fractal detail at no measurable cost in loss. The
   pictures magnify structure that is worth very little to the loss.
-- **Small scale.** Three seeds, one architecture, fixed training lengths, final layer only. The dense comparison with
-  packing rests on 7 models that keep both beliefs.
+- **Small scale.** Three seeds, one architecture, fixed training lengths, final layer only. The simultaneous comparison
+  with packing rests on 7 models that keep both beliefs.
 
 ## How this was made
 
 I set the questions and the direction, ran every experiment on my laptop, checked the mathematics and the numbers, and
 decided what to keep, cut and follow up. The code and first drafts of the text and derivations were written with Claude
-(Anthropic). Several turns in the project came from that checking and questioning: asking whether the softmax distorts
-the linear picture, which space the angles should be measured in, whether separate tokens were giving the process away,
-and whether a model of two processes starts as one and later splits in two.
+(Anthropic). Several turns in the project came from that checking and questioning.
 
-This project grew out of the Iliad Intensive.
+This project grew out of material I was exposed to at the Iliad Intensive.

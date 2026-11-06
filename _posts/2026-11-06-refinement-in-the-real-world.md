@@ -203,8 +203,8 @@ cocycle as a triple $$(c, h, \omega)$$: an integral cochain $$c$$, a closed form
 The cochain $$h$$ is a witness that the square commutes, and two cocycles are equivalent only if their witnesses are compatible too. This is a
 _homotopy pullback_ (a homotopy limit), shown in Figure 5, and $$\check{H}^2(M)$$ is its group of components.
 
-<div class="tikz-figure" style="max-width: 520px; margin-left: auto; margin-right: auto;">
-  <img class="tikz" src="{{ '/assets/img/posts/refinement/pullback.svg' | relative_url }}" alt="Homotopy pullback square">
+<div class="tikz-figure">
+  <img class="tikz" style="display: block; width: 70%; margin: 0 auto;" src="{{ '/assets/img/posts/refinement/pullback.svg' | relative_url }}" alt="Homotopy pullback square">
 </div>
 <div class="caption">
   Figure 5. Differential cohomology as a homotopy pullback. The square commutes only up to the homotopy h, and h is part of the data.

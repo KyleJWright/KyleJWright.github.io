@@ -1,0 +1,11 @@
+% Differential cohomology as a homotopy pullback (Hopkins--Singer), degree 2.
+\documentclass[border=6pt]{standalone}
+\usepackage{amsmath,amssymb,tikz-cd}
+\begin{document}
+\begin{tikzcd}[column sep=6em, row sep=4.5em]
+\check H^2(M) \arrow[r, "\text{curvature } F"] \arrow[d, "\text{characteristic class } c_1"'] \arrow[dr, phantom, "\Downarrow\, h" description]
+  & \Omega^2_{\mathrm{cl}}(M) \arrow[d, "\text{de Rham}"] \\
+H^2(M;\mathbb Z) \arrow[r, "\otimes\,\mathbb R"']
+  & H^2(M;\mathbb R)
+\end{tikzcd}
+\end{document}

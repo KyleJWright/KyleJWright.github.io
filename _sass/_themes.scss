@@ -265,3 +265,8 @@ html[data-theme="dark"] body::after {
     margin: 0 0 1.25rem;
   }
 }
+
+/* TikZ figures in posts: black-on-transparent SVGs, inverted for dark mode */
+html[data-theme="dark"] img.tikz {
+  filter: invert(0.88) hue-rotate(180deg);
+}

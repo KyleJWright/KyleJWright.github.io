@@ -1,0 +1,10 @@
+% The differential cohomology hexagon (Simons--Sullivan), degree 2.
+\documentclass[border=6pt]{standalone}
+\usepackage{amsmath,amssymb,tikz-cd}
+\begin{document}
+\begin{tikzcd}[column sep=2.6em, row sep=3.2em]
+ & \Omega^1(M)/\Omega^1_{\mathbb Z}(M) \arrow[rr, "d"] \arrow[dr, "a"] & & \Omega^2_{\mathbb Z}(M) \arrow[dr, "\text{de Rham}"] & \\
+H^1(M;\mathbb R) \arrow[ur] \arrow[dr] & & \check H^2(M) \arrow[ur, "\text{curvature}"] \arrow[dr, "c_1"'] & & H^2(M;\mathbb R) \\
+ & H^1(M;\mathbb R/\mathbb Z) \arrow[rr, "-\beta"'] \arrow[ur, "\text{flat}"'] & & H^2(M;\mathbb Z) \arrow[ur] &
+\end{tikzcd}
+\end{document}
